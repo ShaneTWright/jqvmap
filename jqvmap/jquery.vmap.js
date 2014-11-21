@@ -368,6 +368,8 @@
 
     this.defaultWidth = mapData.width;
     this.defaultHeight = mapData.height;
+    this.defaultHeightRatio = parseFloat((this.defaultHeight / this.defaultWidth).toFixed(2));
+    this.heightRatio = params.heightRatio || this.defaultHeightRatio;
 
     this.color = params.color;
     this.selectedColor = params.selectedColor;
@@ -376,13 +378,13 @@
     this.setBackgroundColor(params.backgroundColor);
 
     this.width = params.container.width();
-    this.height = params.container.height();
+    this.height = this.width * this.heightRatio;
 
     this.resize();
 
     jQuery(window).resize(function () {
       map.width = params.container.width();
-      map.height = params.container.height();
+      map.height = map.width * map.heightRatio;
       map.resize();
       map.canvas.setSize(map.width, map.height);
       map.applyTransform();
@@ -544,6 +546,7 @@
     baseScale: 1,
     width: 0,
     height: 0,
+    defaultHeightRatio: 1,
     countries: {},
     countriesColors: {},
     countriesData: {},
