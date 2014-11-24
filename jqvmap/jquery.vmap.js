@@ -181,7 +181,8 @@
         node.setOpacity = function (opacity) {
           this.setAttribute('fill-opacity', opacity);
         };
-      } else {
+      } 
+      else {
         node = this.createVmlNode('shape');
         node.coordorigin = "0 0";
         node.coordsize = this.width + ' ' + this.height;
@@ -432,13 +433,13 @@
       regionMouseOverEvent = $.Event('regionMouseOver.jqvmap');
 
       if (e.type == 'mouseover') {
-        jQuery(params.container).trigger(regionMouseOverEvent, [code, mapData.pathes[code].name]);
+        jQuery(params.container).trigger(regionMouseOverEvent, [code, mapData.pathes[code].name, mapData.pathes[code].data]);
         if (!regionMouseOverEvent.isDefaultPrevented()) {
           map.highlight(code, path);
         }
         if (params.showTooltip) {
           map.label.text(mapData.pathes[code].name);
-          jQuery(params.container).trigger(labelShowEvent, [map.label, code]);
+          jQuery(params.container).trigger(labelShowEvent, [map.label, code, mapData.pathes[code].data]);
 
           if (!labelShowEvent.isDefaultPrevented()) {
             map.label.show();
@@ -450,7 +451,7 @@
         map.unhighlight(code, path);
 
         map.label.hide();
-        jQuery(params.container).trigger('regionMouseOut.jqvmap', [code, mapData.pathes[code].name]);
+        jQuery(params.container).trigger('regionMouseOut.jqvmap', [code, mapData.pathes[code].name, mapData.pathes[code].data]);
       }
     });
 
@@ -462,10 +463,11 @@
         }
       }
 
-      var path = e.target;
-      var code = e.target.id.split('_').pop();
+      var path = e.target,
+      code = e.target.id.split('_').pop(),
+      regionClickEvent = $.Event('regionClick.jqvmap');
 
-      jQuery(params.container).trigger('regionClick.jqvmap', [code, mapData.pathes[code].name]);
+      jQuery(params.container).trigger('regionClick.jqvmap', [code, mapData.pathes[code].name, mapData.pathes[code].data]);
       if (!regionClickEvent.isDefaultPrevented()) {
         if (map.selectedRegions.indexOf(code) !== -1) {
           map.deselect(code, path);
