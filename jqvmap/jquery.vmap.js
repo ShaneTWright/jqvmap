@@ -34,6 +34,21 @@
     onRegionSelect: 'regionSelect',
     onRegionDeselect: 'regionDeselect'
   };
+  
+  var resizeEvents = [],
+      resizeReady = true;
+
+  jQuery(window).resize(function () {
+    if (resizeReady === true && resizeEvents.length){
+      console.log(resizeEvents);
+      
+      $.each(resizeEvents, function(i,event){
+        $(document).trigger(event);
+      });
+      resizeReady = false;
+      setTimeout(function(){resizeReady = true},10);
+    }
+  });
 
   $.fn.vectorMap = function (options) {
 
@@ -47,6 +62,8 @@
       normalizeFunction: 'linear',
       enableZoom: true,
       showTooltip: true,
+      tooltipX: 'left',
+      tooltipY: 'top',
       borderColor: '#818181',
       borderWidth: 1,
       borderOpacity: 0.25,
@@ -58,6 +75,16 @@
       WorldMap.maps[arguments[1]] = arguments[2];
     } else if (options === 'set' && apiParams[arguments[1]]) {
       map['set' + arguments[1].charAt(0).toUpperCase() + arguments[1].substr(1)].apply(map, Array.prototype.slice.call(arguments, 2));
+    } else if (options === 'close') {
+      map.close();
+      
+      for (var e in apiEvents) {
+        if (defaultParams[e]) {
+          this.unbind(apiEvents[e] + '.jqvmap', defaultParams[e]);
+        }
+      }
+      
+      return this;
     } else if (typeof options === 'string' &&
                typeof map[options] === 'function') {
       return map[options].apply(map, Array.prototype.slice.call(arguments, 1));
@@ -75,6 +102,8 @@
           this.bind(apiEvents[e] + '.jqvmap', defaultParams[e]);
         }
       }
+      
+      return this;
     }
   };
 
@@ -383,7 +412,7 @@
 
     this.resize();
 
-    jQuery(window).resize(function () {
+    jQuery(document).on('jqvmap.resize.' + WorldMap.mapIndex,function () {
       map.width = params.container.width();
       map.height = map.width * map.heightRatio;
       map.resize();
@@ -443,8 +472,8 @@
 
           if (!labelShowEvent.isDefaultPrevented()) {
             map.label.show();
-            map.labelWidth = map.label.width();
-            map.labelHeight = map.label.height();
+            map.labelWidth = map.label.outerWidth();
+            map.labelHeight = map.label.outerHeight();
           }
         }
       } else {
@@ -483,18 +512,30 @@
     if (params.showTooltip) {
       params.container.mousemove(function (e) {
         if (map.label.is(':visible')) {
-            var left = e.pageX - 15 - map.labelWidth;
-            var top = e.pageY - 15 - map.labelHeight;
-            
-            if(left < 0)
-               left = e.pageX + 15;
-            if(top < 0)
-                top = e.pageY + 15;
-            
-            map.label.css({
-                left: left,
-                top: top
-          });
+          var topAlign = e.pageY - 5 - map.labelHeight,
+              rightAlign = e.pageX + 15,
+              bottomAlign = e.pageY + 20,
+              leftAlign = e.pageX - 5 - map.labelWidth,
+              x = params.tooltipX === 'right',
+              y = params.tooltipY === 'bottom',
+              top = (y ? bottomAlign : topAlign),
+              left = (x ? rightAlign : leftAlign);
+          
+          if (x && (left + map.labelWidth) > jQuery(window).width())
+            left = leftAlign;    
+          if (y && (top + map.labelHeight) > jQuery(window).height())
+            top = topAlign;        
+          
+          if (left < 0)
+            left = rightAlign;
+          if (top < 0)
+            top = bottomAlign;
+          
+          map.label
+            .css({
+              left: left,
+              top: top
+            });
         }
       });
     }
@@ -535,7 +576,8 @@
       this.pinHandlers = false;
       this.placePins(params.pins, params.pinMode);
     }
-
+    
+    resizeEvents.push('jqvmap.resize.' + this.index);
     WorldMap.mapIndex++;
   };
 
@@ -850,7 +892,7 @@
       return this.getCountryId(cc)+'_pin';
     },
     
-    placePins: function(pins, pinMode){
+    placePins: function(pins, pinMode) {
       var map = this;
 
       if(!pinMode || (pinMode != "content" && pinMode != "id")) {
@@ -895,7 +937,7 @@
       }
     },
 
-    positionPins: function(){
+    positionPins: function() {
       var map = this;
       var pins = this.container.find('.jqvmap_pin');
       jQuery.each(pins, function(index, pinObj){
@@ -915,30 +957,47 @@
       });
      },
 
-     getPin: function(cc){
-       var pinObj = jQuery('#'+this.getPinId(cc));
-       return pinObj.html();
-     },
+    getPin: function(cc) {
+      var pinObj = jQuery('#'+this.getPinId(cc));
+      return pinObj.html();
+    },
 
-     getPins: function(){
-       var pins = this.container.find('.jqvmap_pin');
-       var ret = new Object();
-       jQuery.each(pins, function(index, pinObj){
-         pinObj = jQuery(pinObj);
-         var cc = pinObj.attr('for');
-         var pinContent = pinObj.html();
-         eval("ret." + cc + "=pinContent");
-       });
-       return JSON.stringify(ret);
-     },
+    getPins: function() {
+      var pins = this.container.find('.jqvmap_pin');
+      var ret = new Object();
+      jQuery.each(pins, function(index, pinObj){
+        pinObj = jQuery(pinObj);
+        var cc = pinObj.attr('for');
+        var pinContent = pinObj.html();
+        eval("ret." + cc + "=pinContent");
+      });
+      return JSON.stringify(ret);
+    },
 
-     removePin: function(cc) {
-       jQuery('#'+this.getPinId(cc)).remove();
-     },
+    removePin: function(cc) {
+      jQuery('#'+this.getPinId(cc)).remove();
+    },
 
-     removePins: function(){
-       this.container.find('.jqvmap_pin').remove();
-     }
+    removePins: function() {
+      this.container.find('.jqvmap_pin').remove();
+    },
+    
+    close: function() {
+      var event = 'jqvmap.resize.' + this.index,
+          index;
+      
+      jQuery(document)
+        .off(event);
+      
+      index = resizeEvents.indexOf(event);
+      if (index > -1) {
+        resizeEvents.splice(index, 1);
+      }
+      
+      jQuery(this.canvas.canvas)
+        .off()
+        .remove();
+    }
   };
 
   WorldMap.xlink = "http://www.w3.org/1999/xlink";
